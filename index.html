@@ -1,1 +1,369 @@
-<h1>crossberry</h1>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Shorts Video Player</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #000;
+            color: white;
+            height: 100vh;
+            overflow: hidden;
+            touch-action: pan-y;
+        }
+        
+        .shorts-container {
+            position: relative;
+            height: 100vh;
+            width: 100%;
+            overflow: hidden;
+        }
+        
+        .video-wrapper {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.5s ease-out;
+        }
+        
+        .video-item {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            padding: 16px;
+            background-size: cover;
+            background-position: center;
+        }
+        
+        .video-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.3) 30%, rgba(0,0,0,0) 50%);
+            z-index: 1;
+        }
+        
+        .video-content {
+            position: relative;
+            z-index: 2;
+            margin-bottom: 60px;
+        }
+        
+        .video-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 12px;
+        }
+        
+        .video-author {
+            display: flex;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        
+        .author-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background-color: #555;
+            margin-right: 8px;
+        }
+        
+        .author-name {
+            font-size: 14px;
+        }
+        
+        .video-controls {
+            position: absolute;
+            right: 16px;
+            bottom: 80px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            z-index: 2;
+        }
+        
+        .control-button {
+            background: none;
+            border: none;
+            color: white;
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-size: 12px;
+        }
+        
+        .control-icon {
+            font-size: 24px;
+            margin-bottom: 4px;
+        }
+        
+        .swipe-indicator {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            z-index: 2;
+            animation: bounce 2s infinite;
+        }
+        
+        .swipe-text {
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+        
+        .swipe-arrow {
+            font-size: 24px;
+        }
+        
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {transform: translateY(0) translateX(-50%);}
+            40% {transform: translateY(-10px) translateX(-50%);}
+            60% {transform: translateY(-5px) translateX(-50%);}
+        }
+        
+        .progress-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background-color: rgba(255,255,255,0.3);
+            z-index: 3;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background-color: white;
+            width: 0%;
+            transition: width 0.1s linear;
+        }
+    </style>
+</head>
+<body>
+    <div class="shorts-container" id="shortsContainer">
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressBar"></div>
+        </div>
+        
+        <div class="video-wrapper" id="videoWrapper">
+            <!-- Videos will be added here dynamically -->
+        </div>
+        
+        <div class="swipe-indicator">
+            <div class="swipe-text">Swipe up for next</div>
+            <div class="swipe-arrow">↑</div>
+        </div>
+    </div>
+
+    <script>
+        // Sample video data
+        const videos = [
+            {
+                id: 1,
+                title: "Amazing sunset at the beach today! 🌅",
+                author: "TravelAdventures",
+                bgImage: "linear-gradient(to bottom, #ff7e5f, #feb47b)",
+                duration: 15
+            },
+            {
+                id: 2,
+                title: "Check out this cool trick! #shorts",
+                author: "SkateboardPro",
+                bgImage: "linear-gradient(to bottom, #a8ff78, #78ffd6)",
+                duration: 10
+            },
+            {
+                id: 3,
+                title: "Cooking my favorite recipe 🍳",
+                author: "FoodMaster",
+                bgImage: "linear-gradient(to bottom, #8e2de2, #4a00e0)",
+                duration: 20
+            },
+            {
+                id: 4,
+                title: "Morning workout routine 💪",
+                author: "FitnessGuru",
+                bgImage: "linear-gradient(to bottom, #00c6ff, #0072ff)",
+                duration: 12
+            }
+        ];
+
+        const videoWrapper = document.getElementById('videoWrapper');
+        const progressBar = document.getElementById('progressBar');
+        const shortsContainer = document.getElementById('shortsContainer');
+        
+        let currentVideoIndex = 0;
+        let startY = 0;
+        let currentY = 0;
+        let isDragging = false;
+        let progressInterval;
+        let currentVideoTime = 0;
+
+        // Create video elements
+        function createVideoElements() {
+            videos.forEach((video, index) => {
+                const videoItem = document.createElement('div');
+                videoItem.className = 'video-item';
+                videoItem.style.backgroundImage = video.bgImage;
+                videoItem.dataset.id = video.id;
+                videoItem.dataset.index = index;
+                
+                videoItem.innerHTML = `
+                    <div class="video-overlay"></div>
+                    <div class="video-content">
+                        <div class="video-title">${video.title}</div>
+                        <div class="video-author">
+                            <div class="author-avatar"></div>
+                            <div class="author-name">@${video.author}</div>
+                        </div>
+                    </div>
+                `;
+                
+                videoWrapper.appendChild(videoItem);
+            });
+            
+            // Set initial position
+            updateVideoPosition();
+        }
+
+        // Update video wrapper position based on current video
+        function updateVideoPosition() {
+            const offset = -currentVideoIndex * 100;
+            videoWrapper.style.transform = `translateY(${offset}vh)`;
+        }
+
+        // Start video progress timer
+        function startProgressTimer() {
+            clearInterval(progressInterval);
+            currentVideoTime = 0;
+            const videoDuration = videos[currentVideoIndex].duration;
+            
+            progressInterval = setInterval(() => {
+                currentVideoTime += 0.1;
+                const progressPercent = (currentVideoTime / videoDuration) * 100;
+                progressBar.style.width = `${progressPercent}%`;
+                
+                if (currentVideoTime >= videoDuration) {
+                    clearInterval(progressInterval);
+                    nextVideo();
+                }
+            }, 100);
+        }
+
+        // Show next video
+        function nextVideo() {
+            if (currentVideoIndex < videos.length - 1) {
+                currentVideoIndex++;
+                updateVideoPosition();
+                startProgressTimer();
+            }
+        }
+
+        // Show previous video
+        function prevVideo() {
+            if (currentVideoIndex > 0) {
+                currentVideoIndex--;
+                updateVideoPosition();
+                startProgressTimer();
+            }
+        }
+
+        // Handle touch/mouse events
+        shortsContainer.addEventListener('touchstart', handleStart, { passive: false });
+        shortsContainer.addEventListener('mousedown', handleStart);
+        
+        shortsContainer.addEventListener('touchmove', handleMove, { passive: false });
+        shortsContainer.addEventListener('mousemove', handleMove);
+        
+        shortsContainer.addEventListener('touchend', handleEnd);
+        shortsContainer.addEventListener('mouseup', handleEnd);
+        shortsContainer.addEventListener('mouseleave', handleEnd);
+
+        function handleStart(e) {
+            isDragging = true;
+            startY = e.clientY || e.touches[0].clientY;
+            currentY = -currentVideoIndex * window.innerHeight;
+            
+            // Pause progress bar during drag
+            clearInterval(progressInterval);
+            videoWrapper.style.transition = 'none';
+            
+            e.preventDefault();
+        }
+
+        function handleMove(e) {
+            if (!isDragging) return;
+            
+            const clientY = e.clientY || e.touches[0].clientY;
+            const deltaY = clientY - startY;
+            const newY = currentY + deltaY;
+            
+            // Apply rubber band effect at boundaries
+            let boundedY = newY;
+            const maxY = 0;
+            const minY = -(videos.length - 1) * window.innerHeight;
+            
+            if (newY > maxY) {
+                boundedY = maxY + (newY - maxY) * 0.3;
+            } else if (newY < minY) {
+                boundedY = minY + (newY - minY) * 0.3;
+            }
+            
+            videoWrapper.style.transform = `translateY(${boundedY}px)`;
+            
+            e.preventDefault();
+        }
+
+        function handleEnd(e) {
+            if (!isDragging) return;
+            isDragging = false;
+            
+            const clientY = e.clientY || (e.changedTouches ? e.changedTouches[0].clientY : 0);
+            const deltaY = clientY - startY;
+            
+            // Re-enable transitions
+            videoWrapper.style.transition = 'transform 0.5s ease-out';
+            
+            // Determine if we should go to next/prev video
+            if (Math.abs(deltaY) > 100) { // Minimum swipe distance
+                if (deltaY < 0 && currentVideoIndex < videos.length - 1) {
+                    nextVideo();
+                } else if (deltaY > 0 && currentVideoIndex > 0) {
+                    prevVideo();
+                } else {
+                    updateVideoPosition(); // Return to current position
+                }
+            } else {
+                updateVideoPosition(); // Return to current position
+            }
+            
+            // Resume progress bar
+            startProgressTimer();
+        }
+
+        // Initialize
+        createVideoElements();
+        startProgressTimer();
+    </script>
+</body>
+</html>
