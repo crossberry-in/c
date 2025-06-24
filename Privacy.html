@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Markdown Viewer</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+      background: #f9f9f9;
+    }
+    #markdown-output {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+  </style>
+</head>
+<body>
+
+<h2>📄 GitHub Markdown Output</h2>
+<div id="markdown-output">Loading...</div>
+
+<script>
+  const markdownUrl = "https://raw.githubusercontent.com/yourusername/yourrepo/main/README.md"; // replace with your raw URL
+
+  fetch(markdownUrl)
+    .then(response => response.text())
+    .then(md => {
+      document.getElementById("markdown-output").innerHTML = marked.parse(md);
+    })
+    .catch(error => {
+      document.getElementById("markdown-output").innerText = "Failed to load markdown: " + error;
+    });
+</script>
+
+</body>
+</html>
